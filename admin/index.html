@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin | Cơm Nhà Ín</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="sidebar">
+      <div class="brand-box">
+        <div class="icon">🍚</div>
+        <div>
+          <strong>Cơm Nhà Ín</strong>
+          <small>Admin Dashboard</small>
+        </div>
+      </div>
+
+      <nav class="nav-group">
+        <button class="nav-btn active" data-target="overview">Tổng quan</button>
+        <button class="nav-btn" data-target="products">Sản phẩm</button>
+        <button class="nav-btn" data-target="employees">Nhân viên</button>
+        <button class="nav-btn" data-target="orders">Đơn hàng</button>
+        <button class="nav-btn" data-target="inventory">Kho hàng</button>
+        <a href="../index.html" class="nav-btn">← Về trang chủ</a>
+      </nav>
+    </aside>
+
+    <main class="admin-main">
+      <header class="topbar">
+        <div class="page-title">
+          <h1>Trang quản trị</h1>
+          <p>Quản lý nhân sự, sản phẩm, đơn hàng và kho hàng</p>
+        </div>
+        <div class="top-actions">
+          <button id="resetDataBtn" class="ghost-btn">Khôi phục dữ liệu mẫu</button>
+        </div>
+      </header>
+
+      <section id="overview" class="tab-panel active">
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <div class="content-grid">
+          <div class="panel">
+            <h3>Đơn hàng gần đây</h3>
+            <div id="recentOrders" class="mini-list"></div>
+          </div>
+
+          <div class="panel">
+            <h3>Hàng trong kho</h3>
+            <div id="inventoryAlert" class="mini-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="products" class="tab-panel">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Quản lý sản phẩm</h3>
+            <button class="primary-btn open-modal-btn" data-target="product">+ Thêm món</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Món</th>
+                  <th>Danh mục</th>
+                  <th>Giá</th>
+                  <th>Mô tả</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="productTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="employees" class="tab-panel">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Quản lý nhân viên</h3>
+            <button class="primary-btn open-modal-btn" data-target="employee">+ Thêm nhân viên</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Họ tên</th>
+                  <th>Chức vụ</th>
+                  <th>Ca làm</th>
+                  <th>Điện thoại</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="employeeTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="orders" class="tab-panel">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Quản lý đơn hàng</h3>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mã đơn</th>
+                  <th>Khách hàng</th>
+                  <th>Sản phẩm</th>
+                  <th>Tổng tiền</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="orderTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="inventory" class="tab-panel">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Quản lý kho</h3>
+            <button class="primary-btn open-modal-btn" data-target="inventory">+ Thêm kho</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nguyên liệu</th>
+                  <th>Đơn vị</th>
+                  <th>Số lượng</th>
+                  <th>Tình trạng</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="entityModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-main">
+        <div class="modal-header">
+          <h3 id="modalTitle">Thêm món</h3>
+          <button class="modal-close" type="button" aria-label="Đóng">×</button>
+        </div>
+
+        <div class="modal-body modal-main-inner">
+          <form id="entityForm">
+            <input type="hidden" id="entityId">
+            <input type="hidden" id="entityType">
+            <div id="modalFields" class="form-grid"></div>
+            <div class="modal-actions">
+              <button type="submit" class="primary-btn">Lưu</button>
+              <button type="button" class="ghost-btn" id="cancelModalBtn">Huỷ</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

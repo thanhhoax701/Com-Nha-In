@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cơm Nhà Ín | Cơm ngon như cơm nhà</title>
+  <meta name="description" content="Cơm Nhà Ín - món ngon mỗi ngày, đậm vị cơm nhà.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container nav">
+      <a class="brand" href="index.html">
+        <span class="brand-icon">🍚</span>
+        <span><strong>Cơm Nhà Ín</strong><small>Cơm ngon như cơm nhà</small></span>
+      </a>
+      <nav>
+        <a href="#menu">Thực đơn</a>
+        <a href="#about">Câu chuyện nhà Ín</a>
+        <a href="#contact">Liên hệ</a>
+      </nav>
+      <a class="cart-btn" href="cart.html">🛒 <span>Giỏ hàng</span> <b id="cartCount">0</b></a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">BỮA CƠM NHÀ · NẤU MỚI MỖI NGÀY</span>
+          <h1>Cơm Nhà Ín</h1>
+          <p>Món ngon thân thuộc, nấu chỉn chu và trao tận tay. Một bữa cơm ấm lòng cho những ngày bận rộn.</p>
+          <div class="hero-actions">
+            <a class="primary-btn" href="#menu">Khám phá thực đơn <span aria-hidden="true">↗</span></a>
+            <a class="hero-phone" href="tel:+84936169702">Đặt món <strong>0936 169 702</strong></a>
+          </div>
+          <div class="hero-note"><span></span>Nấu mới · Đậm vị · Giao tận nơi</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="menu" class="section container">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">THỰC ĐƠN</span>
+          <h2>Món ngon nhà Ín</h2>
+        </div>
+        <div class="menu-controls">
+          <label class="menu-search">
+            <span aria-hidden="true">⌕</span>
+            <input id="menuSearch" type="search" placeholder="Tìm món ăn..." aria-label="Tìm món trong thực đơn">
+          </label>
+          <div id="categories" class="categories"></div>
+        </div>
+      </div>
+      <p id="menuResultCount" class="menu-result-count" aria-live="polite"></p>
+      <div id="products" class="product-grid"></div>
+    </section>
+
+    <section id="about" class="about">
+      <div class="container about-grid">
+        <div>
+          <span class="eyebrow">TỪ GIAN BẾP NHÀ ÍN</span>
+          <h2>Thân quen trong vị,<br>trọn vẹn trong từng bữa.</h2>
+        </div>
+        <p>Mỗi món ăn được chuẩn bị từ những nguyên liệu quen thuộc, nêm nếm vừa vặn và nấu bằng sự chăm chút như dành cho người thân trong nhà.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer id="contact">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <strong>🍚 Cơm Nhà Ín</strong>
+        <span>Cơm ngon như cơm nhà</span>
+      </div>
+      <div class="footer-contact" aria-label="Thông tin liên hệ">
+        <p><span>Địa chỉ</span><strong>Nhà Nọc Ín</strong></p>
+        <p><span>Gọi đặt món</span><a href="tel:+84936169702">0936 169 702</a></p>
+      </div>
+      <small>© 2026 Cơm Nhà Ín. Ăn ngon nha! ❤️</small>
+    </div>
+  </footer>
+  <div id="siteToast" class="site-toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
