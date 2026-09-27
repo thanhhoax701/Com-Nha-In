@@ -1,3 +1,7 @@
+import { auth, db } from '../js/firebase.js';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+
 const STORAGE_KEYS = {
   products: 'comNhaIn_products',
   employees: 'comNhaIn_employees',
@@ -9,9 +13,10 @@ const sampleData = {
   products: [
     { id: 'p1', name: 'Cơm gà chiên mắm', category: 'Cơm', price: 45000, emoji: '🍗', description: 'Gà chiên vàng giòn, cơm nóng, sốt mắm đậm đà.' },
     { id: 'p2', name: 'Cơm sườn nướng', category: 'Cơm', price: 50000, emoji: '🥩', description: 'Sườn nướng mềm thơm, ăn cùng rau sống và cơm.' },
-    { id: 'p3', name: 'Canh chua cá', category: 'Canh', price: 30000, emoji: '🍲', description: 'Canh chua thanh mát, vị đậm đà.' },
-    { id: 'p4', name: 'Trứng chiên', category: 'Món thêm', price: 20000, emoji: '🍳', description: 'Trứng chiên vàng, thêm vào suất cơm.' },
-    { id: 'p5', name: 'Nước chanh', category: 'Nước', price: 15000, emoji: '🍋', description: 'Nước chanh mát lạnh, giải ngấy.' }
+    { id: 'p3', name: 'Cơm thịt kho trứng', category: 'Cơm', price: 45000, emoji: '🥚', description: 'Thịt kho mềm đậm vị cùng trứng và cơm trắng.' },
+    { id: 'p4', name: 'Canh chua cá', category: 'Canh', price: 30000, emoji: '🍲', description: 'Canh chua thanh mát, vị đậm đà.' },
+    { id: 'p5', name: 'Trứng chiên', category: 'Món thêm', price: 20000, emoji: '🍳', description: 'Trứng chiên vàng, thêm vào suất cơm.' },
+    { id: 'p6', name: 'Nước chanh', category: 'Nước', price: 15000, emoji: '🍋', description: 'Nước chanh mát lạnh, giải ngấy.' }
   ],
   employees: [
     { id: 'e1', name: 'Nguyễn Thị Lan', role: 'Bếp trưởng', phone: '0901112233', shift: 'Sáng' },
@@ -64,6 +69,10 @@ function statusLabel(status) {
   return map[status] || status;
 }
 
+function safeOrderStatus(status) {
+  return ['pending', 'confirmed', 'delivered', 'cancelled'].includes(status) ? status : 'pending';
+}
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({
     '&': '&amp;',
@@ -78,6 +87,58 @@ function getProducts() { return loadData(STORAGE_KEYS.products); }
 function getEmployees() { return loadData(STORAGE_KEYS.employees); }
 function getOrders() { return loadData(STORAGE_KEYS.orders); }
 function getInventory() { return loadData(STORAGE_KEYS.inventory); }
+
+async function syncCloudData() {
+  const collections = Object.keys(STORAGE_KEYS);
+  const snapshots = await Promise.all(collections.map(name => getDocs(collection(db, name))));
+
+  for (let index = 0; index < collections.length; index += 1) {
+    const name = collections[index];
+    let records = snapshots[index].docs.map(snapshot => ({ id: snapshot.id, ...snapshot.data() }));
+
+    if (records.length === 0) {
+      const localRecords = loadData(STORAGE_KEYS[name]);
+      const isUnmodifiedSample = JSON.stringify(localRecords) === JSON.stringify(sampleData[name]);
+
+      if (name === 'products' || (localRecords.length > 0 && !isUnmodifiedSample)) {
+        if (name === 'products') {
+          records = localRecords.map(product => ({ ...product, active: product.active !== false }));
+        } else if (name === 'orders') {
+          records = localRecords.filter(order => !sampleData.orders.some(sample => sample.id === order.id));
+        } else {
+          records = localRecords.filter(record => {
+            const sample = sampleData[name].find(item => item.id === record.id);
+            return !sample || JSON.stringify(record) !== JSON.stringify(sample);
+          });
+        }
+        await Promise.all(records.map(record => saveRemoteRecord(name, record)));
+      }
+    }
+
+    saveData(STORAGE_KEYS[name], records);
+  }
+}
+
+function saveRemoteRecord(collectionName, record) {
+  return setDoc(doc(db, collectionName, record.id), record);
+}
+
+async function deleteRemoteRecord(collectionName, id) {
+  try {
+    await deleteDoc(doc(db, collectionName, id));
+    return true;
+  } catch (error) {
+    console.error(`Không thể xóa dữ liệu trong ${collectionName}.`, error);
+    showAdminNotice('Không thể xóa trên Firebase. Kiểm tra quyền truy cập và thử lại.');
+    return false;
+  }
+}
+
+function showAdminNotice(message) {
+  const notice = document.getElementById('adminNotice');
+  notice.textContent = message;
+  notice.hidden = false;
+}
 
 function renderStats() {
   const products = getProducts();
@@ -112,10 +173,10 @@ function renderRecentOrders() {
   container.innerHTML = orders.map(order => `
     <div class="mini-item">
       <div>
-        <strong>${order.id}</strong>
-        <span>${order.customer} · ${order.items}</span>
+        <strong>${escapeHtml(order.id)}</strong>
+        <span>${escapeHtml(order.customer)} · ${escapeHtml(order.items)}</span>
       </div>
-      <div class="chip ${order.status}">${statusLabel(order.status)}</div>
+      <div class="chip ${safeOrderStatus(order.status)}">${escapeHtml(statusLabel(order.status))}</div>
     </div>
   `).join('');
 }
@@ -127,10 +188,10 @@ function renderInventoryAlert() {
   container.innerHTML = items.map(item => `
     <div class="mini-item">
       <div>
-        <strong>${item.item}</strong>
-        <span>${item.qty} ${item.unit}</span>
+        <strong>${escapeHtml(item.item)}</strong>
+        <span>${escapeHtml(item.qty)} ${escapeHtml(item.unit)}</span>
       </div>
-      <div class="chip ${item.status === 'Đủ' ? 'ok' : 'low'}">${item.status}</div>
+      <div class="chip ${item.status === 'Đủ' ? 'ok' : 'low'}">${escapeHtml(item.status)}</div>
     </div>
   `).join('');
 }
@@ -142,14 +203,14 @@ function renderProducts() {
   tbody.innerHTML = products.length
     ? products.map(product => `
       <tr>
-        <td><strong>${product.emoji} ${escapeHtml(product.name)}</strong></td>
+        <td><strong>${escapeHtml(product.emoji || '🍚')} ${escapeHtml(product.name)}</strong></td>
         <td>${escapeHtml(product.category)}</td>
         <td>${currency(product.price)}</td>
         <td>${escapeHtml(product.description || '-')}</td>
         <td>
           <div class="row-actions">
-            <button class="tiny-btn primary" data-action="edit-product" data-id="${product.id}">Sửa</button>
-            <button class="tiny-btn danger" data-action="delete-product" data-id="${product.id}">Xoá</button>
+            <button class="tiny-btn primary" data-action="edit-product" data-id="${escapeHtml(product.id)}">Sửa</button>
+            <button class="tiny-btn danger" data-action="delete-product" data-id="${escapeHtml(product.id)}">Xoá</button>
           </div>
         </td>
       </tr>
@@ -170,8 +231,8 @@ function renderEmployees() {
         <td>${escapeHtml(employee.phone)}</td>
         <td>
           <div class="row-actions">
-            <button class="tiny-btn primary" data-action="edit-employee" data-id="${employee.id}">Sửa</button>
-            <button class="tiny-btn danger" data-action="delete-employee" data-id="${employee.id}">Xoá</button>
+            <button class="tiny-btn primary" data-action="edit-employee" data-id="${escapeHtml(employee.id)}">Sửa</button>
+            <button class="tiny-btn danger" data-action="delete-employee" data-id="${escapeHtml(employee.id)}">Xoá</button>
           </div>
         </td>
       </tr>
@@ -195,11 +256,11 @@ function renderOrders() {
         </td>
         <td>${escapeHtml(order.items)}</td>
         <td>${currency(order.total)}</td>
-        <td><span class="chip ${order.status}">${statusLabel(order.status)}</span></td>
+        <td><span class="chip ${safeOrderStatus(order.status)}">${escapeHtml(statusLabel(order.status))}</span></td>
         <td>
           <div class="row-actions">
-            <button class="tiny-btn primary" data-action="next-order" data-id="${order.id}">Cập nhật</button>
-            <button class="tiny-btn danger" data-action="delete-order" data-id="${order.id}">Xoá</button>
+            <button class="tiny-btn primary" data-action="next-order" data-id="${escapeHtml(order.id)}">Cập nhật</button>
+            <button class="tiny-btn danger" data-action="delete-order" data-id="${escapeHtml(order.id)}">Xoá</button>
           </div>
         </td>
       </tr>
@@ -220,8 +281,8 @@ function renderInventory() {
         <td><span class="chip ${item.status === 'Đủ' ? 'ok' : 'low'}">${escapeHtml(item.status)}</span></td>
         <td>
           <div class="row-actions">
-            <button class="tiny-btn primary" data-action="edit-inventory" data-id="${item.id}">Sửa</button>
-            <button class="tiny-btn danger" data-action="delete-inventory" data-id="${item.id}">Xoá</button>
+            <button class="tiny-btn primary" data-action="edit-inventory" data-id="${escapeHtml(item.id)}">Sửa</button>
+            <button class="tiny-btn danger" data-action="delete-inventory" data-id="${escapeHtml(item.id)}">Xoá</button>
           </div>
         </td>
       </tr>
@@ -248,6 +309,9 @@ function openModal(target, item = null) {
 
   entityType.value = target;
   entityId.value = item ? item.id : '';
+  const errorMessage = document.getElementById('adminActionError');
+  errorMessage.hidden = true;
+  errorMessage.textContent = '';
 
   if (target === 'product') {
     modalTitle.textContent = item ? 'Chỉnh sửa món' : 'Thêm món';
@@ -357,10 +421,14 @@ function closeModal() {
   document.getElementById('entityId').value = '';
   document.getElementById('entityType').value = '';
   document.getElementById('modalFields').innerHTML = '';
+  document.getElementById('adminActionError').hidden = true;
 }
 
-function submitEntityForm(event) {
+async function submitEntityForm(event) {
   event.preventDefault();
+  const errorMessage = document.getElementById('adminActionError');
+  errorMessage.hidden = true;
+  errorMessage.textContent = '';
   const type = document.getElementById('entityType').value;
   const formData = new FormData(event.target);
   const payload = Object.fromEntries(formData.entries());
@@ -374,13 +442,15 @@ function submitEntityForm(event) {
       category: payload.category,
       price: Number(payload.price),
       emoji: payload.emoji || '🍚',
-      description: (payload.description || '').trim()
+      description: (payload.description || '').trim(),
+      active: item?.active !== false
     };
 
     const idx = products.findIndex(item => item.id === id);
     if (idx >= 0) products[idx] = product;
     else products.push(product);
 
+    await saveRemoteRecord('products', product);
     saveData(STORAGE_KEYS.products, products);
   }
 
@@ -399,6 +469,7 @@ function submitEntityForm(event) {
     if (idx >= 0) employees[idx] = employee;
     else employees.push(employee);
 
+    await saveRemoteRecord('employees', employee);
     saveData(STORAGE_KEYS.employees, employees);
   }
 
@@ -417,6 +488,7 @@ function submitEntityForm(event) {
     if (idx >= 0) inventory[idx] = item;
     else inventory.push(item);
 
+    await saveRemoteRecord('inventory', item);
     saveData(STORAGE_KEYS.inventory, inventory);
   }
 
@@ -425,25 +497,28 @@ function submitEntityForm(event) {
 }
 
 function bindTableActions() {
-  document.addEventListener('click', (event) => {
+  document.addEventListener('click', async (event) => {
     const button = event.target.closest('button');
     if (!button) return;
 
     const { action, id } = button.dataset;
 
     if (action === 'delete-product') {
+      if (!await deleteRemoteRecord('products', id)) return;
       const products = getProducts().filter(product => product.id !== id);
       saveData(STORAGE_KEYS.products, products);
       renderAll();
     }
 
     if (action === 'delete-employee') {
+      if (!await deleteRemoteRecord('employees', id)) return;
       const employees = getEmployees().filter(item => item.id !== id);
       saveData(STORAGE_KEYS.employees, employees);
       renderAll();
     }
 
     if (action === 'delete-order') {
+      if (!await deleteRemoteRecord('orders', id)) return;
       const orders = getOrders().filter(item => item.id !== id);
       saveData(STORAGE_KEYS.orders, orders);
       renderAll();
@@ -461,12 +536,20 @@ function bindTableActions() {
         cancelled: 'cancelled'
       }[order.status] || 'confirmed';
 
+      try {
+        await updateDoc(doc(db, 'orders', id), { status: nextStatus });
+      } catch (error) {
+        console.error('Không thể cập nhật trạng thái đơn hàng.', error);
+        showAdminNotice('Không thể cập nhật đơn hàng trên Firebase. Thử lại sau.');
+        return;
+      }
       order.status = nextStatus;
       saveData(STORAGE_KEYS.orders, orders);
       renderAll();
     }
 
     if (action === 'delete-inventory') {
+      if (!await deleteRemoteRecord('inventory', id)) return;
       const inventory = getInventory().filter(item => item.id !== id);
       saveData(STORAGE_KEYS.inventory, inventory);
       renderAll();
@@ -489,11 +572,25 @@ function bindTableActions() {
   });
 }
 
-function resetData() {
-  Object.entries(STORAGE_KEYS).forEach(([key, storageKey]) => {
-    saveData(storageKey, sampleData[key]);
-  });
-  renderAll();
+async function resetData() {
+  if (!window.confirm('Khôi phục dữ liệu mẫu trên Firebase? Dữ liệu hiện tại sẽ bị thay thế.')) return;
+
+  try {
+    for (const [key, storageKey] of Object.entries(STORAGE_KEYS)) {
+      const current = await getDocs(collection(db, key));
+      await Promise.all(current.docs.map(snapshot => deleteDoc(snapshot.ref)));
+      const records = key === 'products'
+        ? sampleData[key].map(product => ({ ...product, active: true }))
+        : sampleData[key];
+      await Promise.all(records.map(record => saveRemoteRecord(key, record)));
+      saveData(storageKey, records);
+    }
+    renderAll();
+    showAdminNotice('Đã khôi phục dữ liệu mẫu trên Firebase.');
+  } catch (error) {
+    console.error('Không thể khôi phục dữ liệu mẫu trên Firebase.', error);
+    showAdminNotice('Không thể khôi phục dữ liệu. Kiểm tra kết nối và quyền Firebase.');
+  }
 }
 
 function renderAll() {
@@ -506,11 +603,29 @@ function renderAll() {
   renderInventory();
 }
 
+function loginErrorMessage(error) {
+  const messages = {
+    'auth/invalid-credential': 'Email hoặc mật khẩu không chính xác.',
+    'auth/user-not-found': 'Không tìm thấy tài khoản quản trị.',
+    'auth/wrong-password': 'Email hoặc mật khẩu không chính xác.',
+    'auth/too-many-requests': 'Đăng nhập bị tạm khóa. Vui lòng thử lại sau.',
+    'auth/unauthorized-domain': 'Tên miền này chưa được cấp phép trong Firebase Authentication.'
+  };
+  return messages[error.code] || 'Không thể đăng nhập. Kiểm tra kết nối Firebase rồi thử lại.';
+}
+
 function init() {
   bindTabNavigation();
   bindTableActions();
 
-  document.getElementById('entityForm').addEventListener('submit', submitEntityForm);
+  document.getElementById('entityForm').addEventListener('submit', event => {
+    submitEntityForm(event).catch(error => {
+      console.error('Không thể lưu dữ liệu lên Firebase.', error);
+      const message = document.getElementById('adminActionError');
+      message.textContent = 'Không thể lưu lên Firebase. Kiểm tra quyền truy cập và thử lại.';
+      message.hidden = false;
+    });
+  });
   document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
   document.querySelector('.modal-close').addEventListener('click', closeModal);
   document.getElementById('entityModal').addEventListener('click', (event) => {
@@ -524,7 +639,47 @@ function init() {
   });
 
   document.getElementById('resetDataBtn').addEventListener('click', resetData);
-  renderAll();
+  document.getElementById('adminSignOut').addEventListener('click', () => signOut(auth));
+  document.getElementById('adminLoginForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const message = document.getElementById('adminLoginMessage');
+    message.textContent = 'Đang xác thực...';
+
+    try {
+      await signInWithEmailAndPassword(auth, form.get('email'), form.get('password'));
+    } catch (error) {
+      message.textContent = loginErrorMessage(error);
+    }
+  });
+
+  onAuthStateChanged(auth, async user => {
+    const login = document.getElementById('adminLogin');
+    const shell = document.getElementById('adminShell');
+    const message = document.getElementById('adminLoginMessage');
+    shell.hidden = true;
+    login.hidden = false;
+    if (!user) return;
+
+    try {
+      const adminDocument = await getDoc(doc(db, 'admins', user.uid));
+      if (!adminDocument.exists()) {
+        message.textContent = 'Tài khoản đã đăng nhập nhưng chưa được cấp quyền admin.';
+        await signOut(auth);
+        return;
+      }
+
+      message.textContent = '';
+      await syncCloudData();
+      login.hidden = true;
+      shell.hidden = false;
+      renderAll();
+    } catch (error) {
+      console.error('Không thể tải dữ liệu quản trị từ Firebase.', error);
+      message.textContent = 'Không thể tải dữ liệu. Kiểm tra Firestore Rules và kết nối mạng.';
+      await signOut(auth);
+    }
+  });
 }
 
 init();

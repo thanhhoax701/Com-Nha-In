@@ -1,3 +1,6 @@
+import { db } from "./firebase.js";
+import { doc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
 function money(value) {
   return new Intl.NumberFormat("vi-VN").format(value) + "đ";
 }
@@ -15,6 +18,8 @@ function escapeHtml(value) {
 let cart = JSON.parse(localStorage.getItem("comNhaInCart") || "[]");
 let checkoutOpen = false;
 let lastOrderId = "";
+let orderSavedToCloud = false;
+let checkoutError = "";
 
 function render() {
   const container = document.querySelector("#cart");
@@ -24,7 +29,7 @@ function render() {
       ? `<div class="order-success" role="status">
           <span class="success-mark" aria-hidden="true">✓</span>
           <h2>Đã lưu yêu cầu đặt món</h2>
-          <p>Mã đơn <strong>${lastOrderId}</strong> đã được lưu trên trình duyệt này. Gọi cho quán để xác nhận đơn.</p>
+          <p>Mã đơn <strong>${lastOrderId}</strong> ${orderSavedToCloud ? "đã được gửi đến quán." : "chỉ được lưu trên trình duyệt này; hãy gọi quán để xác nhận."}</p>
           <a class="primary-btn" href="tel:+84936169702">Gọi Cơm Nhà Ín · 0936 169 702</a>
           <a class="continue-link" href="index.html#menu">Tiếp tục xem thực đơn</a>
         </div>`
@@ -56,6 +61,7 @@ function render() {
           </label>
         </div>
         <p class="checkout-notice">Chưa thanh toán trực tuyến. Quán sẽ liên hệ để xác nhận đơn.</p>
+        ${checkoutError ? `<p class="checkout-error" role="alert">${escapeHtml(checkoutError)}</p>` : ""}
         <div class="checkout-actions">
           <button type="submit" class="primary-btn">Gửi yêu cầu · ${money(total)}</button>
           <button type="button" class="ghost-btn" id="cancelCheckout">Quay lại giỏ</button>
@@ -122,10 +128,10 @@ function checkout() {
   document.querySelector('#checkoutForm input[name="customer"]')?.focus({ preventScroll: true });
 }
 
-function submitOrder(event) {
+async function submitOrder(event) {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
-  const orderId = `DH${Date.now()}`;
+  const orderId = `DH${Date.now()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const order = {
     id: orderId,
@@ -138,15 +144,34 @@ function submitOrder(event) {
     status: "pending",
     createdAt: new Date().toISOString()
   };
-  const orders = JSON.parse(localStorage.getItem("comNhaIn_orders") || "[]");
-  orders.unshift(order);
-  localStorage.setItem("comNhaIn_orders", JSON.stringify(orders));
-  localStorage.setItem("comNhaInCart", "[]");
-  cart = [];
-  checkoutOpen = false;
-  lastOrderId = orderId;
-  render();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  const submitButton = event.currentTarget.querySelector('[type="submit"]');
+  submitButton.disabled = true;
+  submitButton.textContent = "Đang gửi đơn...";
+
+  try {
+    if (db) {
+      await setDoc(doc(db, "orders", orderId), {
+        ...order,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    const orders = JSON.parse(localStorage.getItem("comNhaIn_orders") || "[]");
+    orders.unshift(order);
+    localStorage.setItem("comNhaIn_orders", JSON.stringify(orders));
+    localStorage.setItem("comNhaInCart", "[]");
+    cart = [];
+    checkoutOpen = false;
+    checkoutError = "";
+    lastOrderId = orderId;
+    orderSavedToCloud = Boolean(db);
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (error) {
+    console.error("Không thể gửi đơn hàng lên Firebase.", error);
+    checkoutError = "Chưa gửi được đơn hàng. Vui lòng thử lại hoặc gọi 0936 169 702.";
+    render();
+  }
 }
 
 function save() {

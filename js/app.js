@@ -1,5 +1,5 @@
 import { db } from "./firebase.js";
-import { collection, getDocs } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const sampleProducts = [
   {id:"com-ga", name:"Cơm gà chiên mắm", price:45000, category:"Cơm", emoji:"🍗", description:"Gà chiên vàng giòn, sốt mắm đậm đà, cơm nóng."},
@@ -17,10 +17,10 @@ let searchTerm = "";
 async function loadProducts(){
   if (db) {
     try {
-      const snap = await getDocs(collection(db, "products"));
+      const snap = await getDocs(query(collection(db, "products"), where("active", "==", true)));
       if (!snap.empty) products = snap.docs.map(d => ({id:d.id, ...d.data()}));
     } catch(e) {
-      console.info("Firebase chưa cấu hình, đang dùng dữ liệu mẫu.");
+      console.info("Không thể tải thực đơn từ Firestore, đang dùng dữ liệu mẫu.");
     }
   }
 
