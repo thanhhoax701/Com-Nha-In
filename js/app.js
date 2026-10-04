@@ -7,7 +7,12 @@ const sampleProducts = [
   {id:"com-thit-kho", name:"Cơm thịt kho trứng", price:45000, category:"Cơm", emoji:"🥚", description:"Thịt kho mềm đậm vị cùng trứng và cơm trắng."},
   {id:"canh-chua", name:"Canh chua cá", price:30000, category:"Canh", emoji:"🍲", description:"Canh chua thanh mát, vị vừa ăn."},
   {id:"trung-chien", name:"Trứng chiên", price:20000, category:"Món thêm", emoji:"🍳", description:"Trứng chiên vàng thơm, món thêm quen thuộc."},
-  {id:"nuoc-chanh", name:"Nước chanh", price:15000, category:"Nước", emoji:"🍋", description:"Nước chanh mát lạnh, giải khát."}
+  {id:"nuoc-chanh", name:"Nước chanh", price:15000, category:"Nước", emoji:"🍋", description:"Nước chanh mát lạnh, giải khát."},
+  {id:"nuoc-ep-oi", name:"Nước ép ổi", price:22000, category:"Nước", emoji:"🥭", description:"Nước ép ổi thơm ngon, giàu vitamin, mát lạnh."},
+  {id:"nuoc-ep-cam", name:"Nước ép cam", price:22000, category:"Nước", emoji:"🍊", description:"Cam nguyên chất, vị ngọt thanh và đậm hương tự nhiên."},
+  {id:"tra-dao", name:"Trà đào", price:20000, category:"Nước", emoji:"🍑", description:"Trà đào ngọt dịu, hương trái cây tươi mát."},
+  {id:"sua-tuoi", name:"Sữa tươi trân châu", price:25000, category:"Nước", emoji:"🥤", description:"Sữa tươi thơm ngon, thêm trân châu dai hấp dẫn."},
+  {id:"nuoc-lot", name:"Nước lọc", price:5000, category:"Nước", emoji:"💧", description:"Nước lọc sạch, tiện lợi cho bữa ăn hàng ngày."}
 ];
 
 let products = sampleProducts;
